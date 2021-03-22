@@ -39,6 +39,9 @@ The matching *lboverlay* will do will then work as follows:
    * It filters each `<ip:port>` tuple.
 4. Reply with the remaining addresses.
 
+Note that the above SRV records are almost entirely nonsensical, they only provide a bridge from the
+service name to `<port:hostname>` tuples that are then resolved to actual IP addresses.
+
 ## Syntax
 
 ~~~ corefile
