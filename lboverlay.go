@@ -18,7 +18,7 @@ const (
 	statusHealthy
 )
 
-// Overlay implement the plugin.Plugin interface and holds the health status
+// Overlay implement the plugin.Plugin interface and holds the health status.
 type Overlay struct {
 	health map[string]status // hostname + ":port" -> health status
 	hcname string
@@ -29,8 +29,10 @@ type Overlay struct {
 	Next plugin.Handler
 }
 
+// Name implement the plugin.Plugin interface.
 func (o *Overlay) Name() string { return "lboverlay" }
 
+// New returns a initialized pointer to an Overlay.
 func New(hcname string) *Overlay {
 	if hcname == "" {
 		hcname = "."
@@ -39,13 +41,13 @@ func New(hcname string) *Overlay {
 	return &Overlay{health: make(map[string]status), u: new(upstream.Upstream), hcname: dns.Fqdn(hcname)}
 }
 
-func (o *Overlay) SetStatus(host, port string, s status) {
+func (o *Overlay) setStatus(host, port string, s status) {
 	o.mu.Lock()
 	o.health[net.JoinHostPort(host, port)] = s
 	o.mu.Unlock()
 }
 
-func (o *Overlay) Status(host, port string) status {
+func (o *Overlay) status(host, port string) status {
 	o.mu.RLock()
 	s, ok := o.health[net.JoinHostPort(host, port)]
 	o.mu.RUnlock()
@@ -53,10 +55,9 @@ func (o *Overlay) Status(host, port string) status {
 		return s
 	}
 	return statusUnknown
-
 }
 
-func (o *Overlay) RemoveStatus(host, port string) {
+func (o *Overlay) removeStatus(host, port string) {
 	o.mu.Lock()
 	delete(o.health, net.JoinHostPort(host, port))
 	o.mu.Unlock()
