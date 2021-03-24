@@ -84,6 +84,7 @@ The question section must adhere to: "lboverlay.coredns.io IN SRV", so the packe
 .           1    IN      SRV 0 0 8080 host1.example.org.
 ~~~
 
-## See Also
+This also means the health checker needs a list of upstream CoreDNS IP addresses and need to send
+the update to all of them.
 
-See <https://github.com/miekg/dns> for a zone parser that returns comments from zone files.
+## See Also
