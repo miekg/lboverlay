@@ -11,7 +11,7 @@ is overlaid on top of another data source (e.g. from the *file* plugin) to only 
 addresses to clients. Health check data consists out of "hostname:port" tuples with a health status:
 UNKNOWN, UNHEALTHY or HEALTHY.
 
-Health check data is send to coredns using the DNS protocol. See below for the format of these
+Health check data is send to coredns process using the DNS protocol. See below for the format of these
 packets.
 
 To allow *lboverlay* to match port numbers the data source should contain SRV records that
@@ -66,7 +66,7 @@ lboverlay [NAME]
 The health check service will need a list of hosts, ports and a description of how to health check,
 how it gets this or how it's formatted is out of scope here.
 
-Health checks can be send to the *lboverlay* plugin, by abusing the a DNS request and encoding the
+Health checks can be send to the *lboverlay* plugin, by abusing a DNS request and encoding the
 health results in the additional section as SRV records. The TTL is then significant to encoding the
 health status:
 
@@ -74,10 +74,12 @@ health status:
 * TTL=1; UNHEALTHY
 * TTL=2; HEALTHY
 
-The name of the SRV record is set to "." (the root domain) as it's not significant.
+The name of the SRV record is set to ".", but this is only to
+detect such a request. Potentially this could be signed (TSIG, or RRSIG record) to prevent spoofing
+of these updates.
 
-The question section must adhere to: ". IN SRV", so the packet that told *lboverlay* that
-"host1.example.org port 8080" is unhealthy looks like:
+The question section must adhere to: ". IN SRV" (that's the default, see **NAME**), so the packet
+that told *lboverlay* that "host1.example.org port 8080" is unhealthy looks like:
 
 ~~~ dns
 ;; QUESTION SECTION:
@@ -87,7 +89,9 @@ The question section must adhere to: ". IN SRV", so the packet that told *lbover
 .           1    IN      SRV 0 0 8080 host1.example.org.
 ~~~
 
-This also means the health checker needs a list of upstream CoreDNS IP addresses and need to send
+This also means the health checker needs a list of upstream CoreDNS IP addresses and needs to send
 the update to all of them.
 
 ## See Also
+
+xDS, example HC services, etc?
