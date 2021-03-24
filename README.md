@@ -6,9 +6,6 @@
 
 ## Description
 
-TODO; is the focus IP:port or hostname:port. If hostname, we don't have have to encode the IP
-addresses again in the health checker (it can get them from the DNS)
-
 The *lboverlay* - load balance overlay - plugin uses health check data (hostname:port:status) that
 is overlaid on top of another data source (e.g. from the *file* plugin) to only hand out healthy
 addresses to clients. Health check data consists out of "hostname:port" tuples with a health status:
@@ -55,11 +52,14 @@ then let through as-is.
 
 ## Syntax
 
-~~~ corefile
-lboverlay [ADDRESS]
+~~~ txt
+lboverlay [NAME]
 ~~~
 
-* **ADDRESS** is the address to listen on. Defaults to TBD.
+* where **NAME** is used to as the domain name under which the health checks are reported. Default
+  to the root domain ".".
+
+## Examples
 
 ## Sending Health Checks to *lboverlay*
 
@@ -76,12 +76,12 @@ health status:
 
 The name of the SRV record is set to "." (the root domain) as it's not significant.
 
-The question section must adhere to: "lboverlay.coredns.io IN SRV", so the packet that told
-*lboverlay* that "host1.example.org port 8080" is unhealthy looks like:
+The question section must adhere to: ". IN SRV", so the packet that told *lboverlay* that
+"host1.example.org port 8080" is unhealthy looks like:
 
 ~~~ dns
 ;; QUESTION SECTION:
-;lboverlay.coredns.io IN SRV
+;. IN SRV
 
 ;; ADDITIONAL SECTION:
 .           1    IN      SRV 0 0 8080 host1.example.org.
