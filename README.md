@@ -56,7 +56,7 @@ then let through as-is.
 lboverlay [NAME]
 ~~~
 
-* where **NAME** is used to as the domain name under which the health checks are reported. Default
+* where **NAME** is used to as the domain name under which the health checks are reported. Defaults
   to the root domain ".".
 
 ## Examples
