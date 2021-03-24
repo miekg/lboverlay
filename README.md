@@ -8,21 +8,20 @@
 
 The *lboverlay* - load balance overlay - plugin uses health check data that is overlaid on top of
 any other data source (e.g. from the *file* plugin) to only hand out healthy addresses to clients.
+Health check data consists out of "hostname:port" tuples with a health state: UKNNOWN, UNHEALTHY or
+HEALTHY.
 
-Health check data is send to coredns using the xDS protocol. This protocol uses *clusters* that hold
-endpoints (IP + port). IPs can be easily matched to A and AAAA records, but port numbers are
-problematic. If 2 services share the same IP address, and only 1 is un healthy this would imply that
-*lboverlay* can't hand out that A/AAAA record; meaning from that standpoint they will be both
-unhealthy.
+Health check data is send to coredns using the DNS protocol. See below for the format of these
+packets.
 
-To allow *lboverlay* to _also_ match port numbers the data source should contain SRV records that
-have those port numbers, here 8080, and 8081.
+To allow *lboverlay* to match port numbers the data source should contain SRV records that
+have those port numbers, here 8080, and 8081:
 
     service1.example.org. IN	SRV	0 0 8080 host1.example.org.
     service1.example.org. IN	SRV	0 0 8080 host2.example.org.
     service2.example.org. IN	SRV	0 0 8082 host3.example.org.
 
-And of course the IP addresses of these should also be available:
+And of course the IP addresses of these should also be available in the same zonefile.
 
     host1.example.org. IN	A 127.0.0.1
     host2.example.org. IN	A 127.0.0.2
@@ -30,28 +29,60 @@ And of course the IP addresses of these should also be available:
 
 The matching *lboverlay* will do will then work as follows:
 
-1. A healt hcheck update is received which says "127.0.0.1 port 8080" is unhealthy.
+1. A healt hcheck update is received which says "host1.example.org port 8080" is unhealthy.
 2. A query for `service1.example.org. IN A` comes in.
 3. *lboverlay* queries the backend for `service1.example.org. IN SRV`.
    * It notes the port numbers in the SRV records.
-   * It resolves the SRV target domains to IP addresses (A or AAAA).
-   * It builds a list of `<ip:port>`.
-   * It filters each `<ip:port>` tuple.
+   * It used SRV target domain to map the health check data to.
+   * It builds a list of `<hostname:port>`.
+   * It filters each `<hostname:port>` tuple.
+   * It resolves the hostname to A records
 4. Reply with the remaining addresses.
-
-Note that the above SRV records are almost entirely nonsensical, they only provide a bridge from the
-service name to `<port:hostname>` tuples that are then resolved to actual IP addresses.
 
 ## Syntax
 
 ~~~ corefile
-lboverlay [ADDRESS] {
-    tls CERT KEY CA
-    tls_servername NAME
-}
+lboverlay [ADDRESS]
 ~~~
 
 * **ADDRESS** is the address to listen on. Defaults to TBD.
-* `tls` and `tls_servername` are explained in, e.g. the *forward* and *grpc* plugins.
+
+## Health Check Description
+
+Because of the close connection between what should be health checked and what data should be handed
+out by *lboverlay* it could make some sense to share the zone file (as described above) with the
+health check service. Except that a health checker would need additional data that doesn't "fit" in
+a zone file. To work around this you can specify comments in the zonfile that tell the checker what
+kind of health check to perform.
+
+These comments have the format of: key=value pairs, where the following have been defined:
+
+* `proto=udp|tcp|grpc|http`
+* `timeout=DURATION`, default to a 5s timeout if not given.
+
+These are separated by commas (no spaces), e.g:
+
+    service1.example.org. IN	SRV	0 0 8080 host1.example.org. ; proto=tcp,timeout=5s
+    service1.example.org. IN	SRV	0 0 8080 host2.example.org. ; proto=udp,timeout=3s
+    service2.example.org. IN	SRV	0 0 8082 host3.example.org. ; proto=http
+
+
+TODO(miek): how to get the IP address? Search?? What about multiple addresses for a host, say only
+v4 and v6? Or take the names as normative for HC purpose?
+
+## Sending Health Checks to *lboverlay*
+
+Health checks can be send to the *lboverlay* plugin, by abusing the a DNS request and encoding the
+health results in the additional section as SRV records. The TTL is then significant to encoding the
+health status:
+
+* TTL=0; UKNOWN
+* TTL=1; UNHEALTHY
+* TTL=2; HEALTHY
+
+The question section must adhere to: "lboverlay.coredns.io IN SRV".
+
 
 ## See Also
+
+See <https://github.com/miekg/dns> for a zone parser that returns comments from zone files.
