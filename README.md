@@ -50,6 +50,9 @@ The matching *lboverlay* will do will then work as follows:
 The *lboverlay* will handle the following record types and will use the health check data: A, AAAA,
 MX, and SRV.
 
+In case the backend _does not have_ SRV records, the original qtype is used to get the data, it's
+then let through as-is.
+
 ## Syntax
 
 ~~~ corefile
