@@ -98,3 +98,8 @@ the update to all of them.
 
 This plugin uses the DNS to receive health check, another way (and more where the industry is
 heading to) is using the xDS protocol from Envoy.
+
+## Bugs
+
+DNSSEC is not handled at all. Currently the happy path works, but NXDOMAIN, NODATA, etc, are not
+handled at all.

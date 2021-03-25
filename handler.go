@@ -11,11 +11,9 @@ import (
 
 // ServeDNS implements the plugin.Plugin interface.
 func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
-	// each should be updated every 10s, so older entries >1h could be removed.
-	// check if normal query and do what is described in the README
+	// each HC entity should be updated every 10s, so older entries >1h could be removed. TODO(miek)
 	state := request.Request{W: w, Req: r}
 
-	// handle health check update return reply
 	if o.isHealthCheck(state) {
 		for _, rr := range r.Extra {
 			srv, ok := rr.(*dns.SRV)
@@ -49,7 +47,7 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 			srvs++
 		}
 	}
-	if srvs == 0 || len(resp.Answer) != srvs { // the response doesn't have srv in it, call NextOrFailure and be a noop
+	if srvs == 0 || len(resp.Answer) != srvs { // the response doesn't have (enough) SRV in it, call NextOrFailure and be a noop
 		return plugin.NextOrFailure(o.Name(), o.Next, ctx, w, r)
 	}
 
@@ -64,12 +62,13 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		}
 		healthySRVs = append(healthySRVs, srv)
 	}
+
 	// for the healthy SRVs we need to resolve the target names with the original qtype from the query
 	m := new(dns.Msg)
 	m.SetReply(r)
-	m.Answer = make([]dns.RR, 0, len(healthySRVs)) // there may be more rr than that returned though
+	m.Answer = make([]dns.RR, 0, len(healthySRVs))
 	for _, srv := range healthySRVs {
-		// inspecting the additional section above might alleviate the extra queries here.
+		// inspecting the additional section above might alleviate the extra queries here. TODO(miek)
 		resp, err := o.u.Lookup(ctx, state, srv.Target, state.QType())
 		if err != nil {
 			continue
@@ -81,6 +80,8 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		}
 	}
 	// nodata, nxdomain and the like. TODO
+	// SOA query from backend to at least be able to get that?
+	// How about RRSIG and the like, not handled.
 
 	w.WriteMsg(m)
 
