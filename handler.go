@@ -48,6 +48,7 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 	}
 
 	// check the response beforehand to make code below simpler because less corner cases.
+	// TODO: RRSIG, and leaving them in and all that (also NSEC)
 	srvs := 0
 	for _, rr := range resp.Answer {
 		if _, ok := rr.(*dns.SRV); ok {
