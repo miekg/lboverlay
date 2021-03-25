@@ -19,36 +19,34 @@ have those port numbers, e.g. here 8080, and 8081:
 
     service1.example.org. IN	SRV	0 0 8080 host1.example.org.
     service1.example.org. IN	SRV	0 0 8080 host2.example.org.
-    service2.example.org. IN	SRV	0 0 8082 host3.example.org.
+    service2.example.org. IN	SRV	0 0 8082 host1.example.org.
 
 And of course the IP addresses of these should also be available in the same zone file/backend.
 
     host1.example.org. IN	A 127.0.0.1
     host2.example.org. IN	A 127.0.0.2
-    host3.example.org. IN	A 127.0.0.3
 
-The above information essentially describes 2 cluster with the following IP:ports.
+The above information essentially describes 2 cluster with the following hostnames , IP addresses
+and port.
 
-* `service1` with 127.0.0.1:8080 and 127.0.0.2:8080
-* `service2` with 127.0.0.3:8082
+* `service1` with `host1.example.org` (127.0.0.1:8080) and `host2.example.org` (127.0.0.2:8080)
+* `service2` with `host1.example.org` (127.0.0.1:8082)
 
 Priority and weight are ignored currently for handing out the SRV records.
 
-The matching *lboverlay* will do will then work as follows:
+The matching *lboverlay* will then work as follows:
 
 1. A health check update is received which says "host1.example.org port 8080" is unhealthy.
 2. A query for `service1.example.org. IN A` comes in.
 3. *lboverlay* queries the backend for `service1.example.org. IN SRV`.
    * It notes the port numbers in the SRV records.
-   * It used SRV target domain to map the health check data to and removes unhealthy ones.
+   * It used SRV target domain (and port number) to map the health check data to and removes unhealthy ones.
    * It resolves the remaining names to A records.
 4. Reply with the remaining addresses and set the TTLs to a 5s value.
 
-The *lboverlay* will handle the following record types and will use the health check data: A, AAAA,
-MX, and SRV.
-
-In case the backend _does not have_ SRV records, the original qtype is used to get the data, it's
-then let through as-is.
+The *lboverlay* will handle all record types, but the backend MUST return SRV records for things to
+work. In case the backend *does not have* SRV records, the original qtype is used to get the data,
+it's then let through as-is.
 
 ## Syntax
 
