@@ -11,6 +11,8 @@ import (
 
 // ServeDNS implements the plugin.Plugin interface.
 func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
+	// copy the message and overwrite the TTLs to a low 10s
+	//
 	// each HC entity should be updated every 10s, so older entries >1h could be removed. TODO(miek)
 	state := request.Request{W: w, Req: r}
 
