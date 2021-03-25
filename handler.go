@@ -76,9 +76,8 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 			rrs = append(rrs, rr1)
 		}
 	}
-	// nodata, nxdomain and the like. TODO
+	m.Answer = rrs
 	// SOA query from backend to at least be able to get that?
-	// How about RRSIG and the like, not handled.
 
 	w.WriteMsg(m)
 
