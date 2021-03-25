@@ -118,24 +118,32 @@ type ResponseWriter struct {
 	*Overlay
 }
 
-/*
-func newResponseWriter(state request.Request, o *Overlay) *ResponseWriter {
-	return &ResponseWriter{
-		ResponseWriter: state.W,
-		Overlay:        o,
-	}
-}
-
-// RemoteAddr implements the dns.ResponseWriter interface.
-func (w *ResponseWriter) RemoteAddr() net.Addr {
-	if w.remoteAddr != nil {
-		return w.remoteAddr
-	}
-	return w.ResponseWriter.RemoteAddr()
-}
-
 // WriteMsg implements the dns.ResponseWriter interface.
 func (w *ResponseWriter) WriteMsg(res *dns.Msg) error {
-	// iterate over response, check
+	healthySRVs := make([]dns.RR, 0, len(res.Answer))
+	for _, rr := range res.Answer {
+		srv, ok := rr.(*dns.SRV)
+		if !ok {
+			continue
+		}
+		s := w.Overlay.status(srv)
+		log.Debugf("Health status for %q is: %s", joinHostPort(srv.Target, srv.Port), s)
+		if s == statusUnhealthy {
+			continue
+		}
+		healthySRVs = append(healthySRVs, srv)
+	}
+	if len(healthySRVs) == len(res.Answer) {
+		// don't modify packet, send as-is
+		w.ResponseWriter.WriteMsg(res)
+		return nil
+	}
+	// make new msg and send that
+	m := new(dns.Msg)
+	m.SetReply(res)
+	m.Answer = healthySRVs
+	m.Ns = res.Ns
+	m.Extra = res.Extra
+	w.ResponseWriter.WriteMsg(m)
+	return nil
 }
-*/

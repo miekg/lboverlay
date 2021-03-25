@@ -32,10 +32,10 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		return 0, nil
 	}
 
-	// We call the backend with SRV records, this means we can handle SRV records because that qeury comes round
-	// to this plugin again, creating a cycle. It would be nice to handle SRV records as well (and overlay health to them) though.
+	// if we see a SRV reply, we wrap it on our response writer and filter out the baddies in our own responseWriter
 	if state.QType() == dns.TypeSRV {
-		return plugin.NextOrFailure(o.Name(), o.Next, ctx, w, r)
+		ow := &ResponseWriter{w, o}
+		return plugin.NextOrFailure(o.Name(), o.Next, ctx, ow, r)
 	}
 
 	resp, err := o.u.Lookup(ctx, state, state.Name(), dns.TypeSRV)
@@ -69,13 +69,15 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 	m.SetReply(r)
 	m.Answer = make([]dns.RR, 0, len(healthySRVs)) // there may be more rr than that returned though
 	for _, srv := range healthySRVs {
+		// inspecting the additional section above might alleviate the extra queries here.
 		resp, err := o.u.Lookup(ctx, state, srv.Target, state.QType())
 		if err != nil {
 			continue
 		}
 		log.Debugf("Found answer for %s/%d, adding %d record(s)", srv.Target, state.QType(), len(resp.Answer))
-		if len(resp.Answer) > 0 {
-			m.Answer = append(m.Answer, resp.Answer...)
+		for _, rr := range resp.Answer {
+			rr.Header().Name = state.QName()
+			m.Answer = append(m.Answer, rr)
 		}
 	}
 	// nodata, nxdomain and the like. TODO
