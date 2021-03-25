@@ -1,16 +1,19 @@
 package lboverlay
 
 import (
-	"net"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/coredns/coredns/plugin"
+	clog "github.com/coredns/coredns/plugin/pkg/log"
+	"github.com/coredns/coredns/plugin/pkg/upstream"
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
 )
+
+var log = clog.NewWithPlugin("overlay")
 
 type status int
 
@@ -20,10 +23,24 @@ const (
 	statusHealthy
 )
 
+func (s status) String() string {
+	switch s {
+	default:
+		fallthrough
+	case statusUnknown:
+		return "UNKNOWN"
+	case statusUnhealthy:
+		return "UNHEALTHY"
+	case statusHealthy:
+		return "HEALTHY"
+	}
+}
+
 // Overlay implement the plugin.Plugin interface and holds the health status.
 type Overlay struct {
 	health map[string]status // hostname + ":port" -> health status
 	hcname string
+	u      *upstream.Upstream
 
 	mu sync.RWMutex // protects health
 
@@ -39,18 +56,18 @@ func New(hcname string) *Overlay {
 		hcname = "."
 	}
 
-	return &Overlay{health: make(map[string]status), hcname: dns.Fqdn(hcname)}
+	return &Overlay{health: make(map[string]status), hcname: dns.Fqdn(hcname), u: upstream.New()}
 }
 
-func (o *Overlay) setStatus(host string, port uint16, s status) {
+func (o *Overlay) setStatus(srv *dns.SRV, s status) {
 	o.mu.Lock()
-	o.health[joinHostPort(host, port)] = s
+	o.health[joinHostPort(srv.Target, srv.Port)] = s
 	o.mu.Unlock()
 }
 
-func (o *Overlay) status(host string, port uint16) status {
+func (o *Overlay) status(srv *dns.SRV) status {
 	o.mu.RLock()
-	s, ok := o.health[joinHostPort(host, port)]
+	s, ok := o.health[joinHostPort(srv.Target, srv.Port)]
 	o.mu.RUnlock()
 	if ok {
 		return s
@@ -58,9 +75,9 @@ func (o *Overlay) status(host string, port uint16) status {
 	return statusUnknown
 }
 
-func (o *Overlay) removeStatus(host string, port uint16) {
+func (o *Overlay) removeStatus(srv *dns.SRV) {
 	o.mu.Lock()
-	delete(o.health, joinHostPort(host, port))
+	delete(o.health, joinHostPort(srv.Target, srv.Port))
 	o.mu.Unlock()
 }
 
@@ -101,6 +118,7 @@ type ResponseWriter struct {
 	*Overlay
 }
 
+/*
 func newResponseWriter(state request.Request, o *Overlay) *ResponseWriter {
 	return &ResponseWriter{
 		ResponseWriter: state.W,
@@ -120,3 +138,4 @@ func (w *ResponseWriter) RemoteAddr() net.Addr {
 func (w *ResponseWriter) WriteMsg(res *dns.Msg) error {
 	// iterate over response, check
 }
+*/
