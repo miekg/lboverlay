@@ -74,6 +74,8 @@ health status:
 * TTL=1; UNHEALTHY
 * TTL=2; HEALTHY
 
+Any other TTL values mean the record will be ignored.
+
 The name of the SRV record is set to ".", but this is only to
 detect such a request. Potentially this could be signed (TSIG, or RRSIG record) to prevent spoofing
 of these updates.
@@ -94,6 +96,5 @@ the update to all of them.
 
 ## See Also
 
-xDS, example HC services, etc?
-
-# Need upstream
+This plugin uses the DNS to receive health check, another way (and more where the industry is
+heading to) is using the xDS protocol from Envoy.
