@@ -42,7 +42,7 @@ The matching *lboverlay* will do will then work as follows:
    * It notes the port numbers in the SRV records.
    * It used SRV target domain to map the health check data to and removes unhealthy ones.
    * It resolves the remaining names to A records.
-4. Reply with the remaining addresses..
+4. Reply with the remaining addresses and set the TTLs to a 5s value.
 
 The *lboverlay* will handle the following record types and will use the health check data: A, AAAA,
 MX, and SRV.

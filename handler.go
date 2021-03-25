@@ -11,8 +11,6 @@ import (
 
 // ServeDNS implements the plugin.Plugin interface.
 func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
-	// copy the message and overwrite the TTLs to a low 10s
-	//
 	// each HC entity should be updated every 10s, so older entries >1h could be removed. TODO(miek)
 	state := request.Request{W: w, Req: r}
 
@@ -38,6 +36,8 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		return plugin.NextOrFailure(o.Name(), o.Next, ctx, ow, r)
 	}
 
+	// By doing this lookup we get into the ow writer from above. This means we don't
+	// have to check health anymore, because that is done the responseWriter already.
 	resp, err := o.u.Lookup(ctx, state, state.Name(), dns.TypeSRV)
 	if err != nil {
 		return plugin.NextOrFailure(o.Name(), o.Next, ctx, w, r)
@@ -58,23 +58,11 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		return plugin.NextOrFailure(o.Name(), o.Next, ctx, w, r)
 	}
 
-	// check what we have, as we should have SRVs, but might not have all A/AAAA/MX records
-	healthySRVs := make([]*dns.SRV, 0, len(resp.Answer))
-	for _, rr := range resp.Answer {
-		srv := rr.(*dns.SRV)
-		s := o.status(srv)
-		log.Debugf("Health status for %q is: %s", joinHostPort(srv.Target, srv.Port), s)
-		if s == statusUnhealthy {
-			continue
-		}
-		healthySRVs = append(healthySRVs, srv)
-	}
-
-	// for the healthy SRVs we need to resolve the target names with the original qtype from the query
 	m := new(dns.Msg)
 	m.SetReply(r)
-	m.Answer = make([]dns.RR, 0, len(healthySRVs))
-	for _, srv := range healthySRVs {
+	rrs := make([]dns.RR, 0, len(resp.Answer))
+	for _, s := range resp.Answer {
+		srv := s.(*dns.SRV)
 		// inspecting the additional section above might alleviate the extra queries here. TODO(miek)
 		resp, err := o.u.Lookup(ctx, state, srv.Target, state.QType())
 		if err != nil {
@@ -82,8 +70,10 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		}
 		log.Debugf("Found answer for %s/%d, adding %d record(s)", srv.Target, state.QType(), len(resp.Answer))
 		for _, rr := range resp.Answer {
-			rr.Header().Name = state.QName()
-			m.Answer = append(m.Answer, rr)
+			rr1 := dns.Copy(rr)
+			rr1.Header().Name = state.QName()
+			rr1.Header().Ttl = 5
+			rrs = append(rrs, rr1)
 		}
 	}
 	// nodata, nxdomain and the like. TODO

@@ -146,7 +146,11 @@ func (w *ResponseWriter) WriteMsg(res *dns.Msg) error {
 	// make new msg and send that
 	m := new(dns.Msg)
 	m.SetReply(res)
-	m.Answer = healthySRVs
+	m.Answer = make([]dns.RR, len(healthySRVs))
+	for i, s := range healthySRVs {
+		m.Answer[i] = dns.Copy(s)
+		m.Answer[i].Header().Ttl = 5
+	}
 	m.Ns = res.Ns
 	m.Extra = res.Extra
 	w.ResponseWriter.WriteMsg(m)
