@@ -57,7 +57,46 @@ lboverlay [NAME]
 * where **NAME** is used to as the domain name under which the health checks are reported. Defaults
   to the root domain ".".
 
+## Metrics
+
+If monitoring is enabled (via the *prometheus* plugin) then the following metrics are exported:
+
+* `coredns_lboverlay_healthcheck_total{server}` - Total number of health checks successfully applied.
+
 ## Examples
+
+In the following example we have a zone file that contains SRV and A records for the `example.com`
+zone saved in a `db.example.com` file.
+
+~~~ dns
+service1.example.com. IN	SRV	0 0 8080 host1.example.com.
+service1.example.com. IN	SRV	0 0 8080 host2.example.com.
+service2.example.com. IN	SRV	0 0 8082 host3.example.com.
+
+host1.example.com. IN A 127.0.0.1
+host2.example.com. IN A 127.0.0.2
+host3.example.com. IN A 127.0.0.3
+~~~
+
+The *lboverlay* plugin can then be configured as follows:
+
+~~~ corefile
+example.com {
+    file db.example.com
+    lboverlay example.com
+}
+~~~
+
+Then sending a query to CoreDNS, like `dig A service1.example.com` should return:
+
+~~~ dns
+;; ANSWER SECTION:
+service1.example.com.	5	IN	A	127.0.0.1
+service1.example.com.	5	IN	A	127.0.0.2
+~~~
+
+Setting the health of host2.example.org port 8080 to unhealthy would remove it from the answer
+section.
 
 ## Sending Health Checks to *lboverlay*
 

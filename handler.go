@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/coredns/coredns/plugin"
+	"github.com/coredns/coredns/plugin/metrics"
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
@@ -13,6 +14,7 @@ import (
 func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	// each HC entity should be updated every 10s, so older entries >1h could be removed. TODO(miek)
 	state := request.Request{W: w, Req: r}
+	server := metrics.WithServer(ctx)
 
 	if o.isHealthCheck(state) {
 		for _, rr := range r.Extra {
@@ -23,6 +25,7 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 			}
 			log.Debugf("Health status for %q set to: %s", joinHostPort(srv.Target, srv.Port), status(srv.Header().Ttl))
 			o.setStatus(srv, status(srv.Header().Ttl))
+			hcCount.WithLabelValues(server).Inc()
 		}
 		resp := new(dns.Msg)
 		resp.SetReply(r)
