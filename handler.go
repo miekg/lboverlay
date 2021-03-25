@@ -69,7 +69,7 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		if err != nil {
 			continue
 		}
-		log.Debugf("Found answer for %s/%d, adding %d record(s)", srv.Target, state.QType(), len(resp.Answer))
+		log.Debugf("Found %d records(1) for %s/%d", srv.Target, state.QType(), len(resp.Answer))
 		for _, rr := range resp.Answer {
 			rr1 := dns.Copy(rr)
 			rr1.Header().Name = state.QName()
@@ -78,7 +78,10 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		}
 	}
 	m.Answer = rrs
-	// SOA query from backend to at least be able to get that?
+	if len(m.Answer) == 0 {
+		// SOA query from backend to at least be able to get that? but we don't know the zone name, so we should chop
+		// off labels.
+	}
 
 	w.WriteMsg(m)
 
