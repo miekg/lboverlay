@@ -101,5 +101,4 @@ heading to) is using the xDS protocol from Envoy.
 
 ## Bugs
 
-DNSSEC is not handled at all. Currently the happy path works, but NXDOMAIN, NODATA, etc, are not
-handled at all.
+DNSSEC is not handled at all.

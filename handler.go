@@ -40,6 +40,11 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 	if err != nil {
 		return plugin.NextOrFailure(o.Name(), o.Next, ctx, w, r)
 	}
+	if resp.Rcode != dns.RcodeSuccess {
+		w.WriteMsg(resp)
+		return 0, nil
+	}
+
 	// check the response beforehand to make code below simpler because less corner cases.
 	srvs := 0
 	for _, rr := range resp.Answer {

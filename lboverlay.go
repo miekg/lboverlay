@@ -120,6 +120,11 @@ type ResponseWriter struct {
 
 // WriteMsg implements the dns.ResponseWriter interface.
 func (w *ResponseWriter) WriteMsg(res *dns.Msg) error {
+	if res.Rcode != dns.RcodeSuccess {
+		w.ResponseWriter.WriteMsg(res)
+		return nil
+	}
+
 	healthySRVs := make([]dns.RR, 0, len(res.Answer))
 	for _, rr := range res.Answer {
 		srv, ok := rr.(*dns.SRV)
