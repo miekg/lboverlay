@@ -4,16 +4,19 @@ import (
 	"context"
 	"testing"
 
+	"github.com/coredns/coredns/plugin/pkg/dnstest"
+	"github.com/coredns/coredns/plugin/test"
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
 )
 
+// upstreamPlugin is the upstream for overlay.
 type upstreamPlugin struct{}
 
 func (u upstreamPlugin) Name() string { return "up" }
 
-func (u upstreamPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) {
+func (u upstreamPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	state := request.Request{W: w, Req: r}
 	m := new(dns.Msg)
 	m.SetReply(r)
@@ -56,8 +59,35 @@ func (u upstreamPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *d
 	}
 
 	w.WriteMsg(m)
+	return 0, nil
+}
+
+var testCases = []test.Case{
+	{
+		Qname: "service1.example.com.", Qtype: dns.TypeA,
+		Answer: []dns.RR{
+			test.A("host1.example.com.	303	IN	A	127.0.0.1"),
+			test.A("host2.example.com.	303	IN	A	127.0.0.2"),
+		},
+	},
 }
 
 func TestLbOverlay(t *testing.T) {
-	// t.Fatal("not implemented")
+	o := New("example.com.")
+	o.Next = upstreamPlugin{}
+
+	for i, tc := range testCases {
+		m := tc.Msg()
+		rec := dnstest.NewRecorder(&test.ResponseWriter{})
+		_, err := o.ServeDNS(context.TODO(), rec, m)
+		if err != nil {
+			t.Errorf("Test %d, expected no error, got %s", i, err)
+			continue
+		}
+
+		resp := rec.Msg
+		if err := test.SortAndCheck(resp, tc); err != nil {
+			t.Errorf("Test %d: %s", i, err)
+		}
+	}
 }

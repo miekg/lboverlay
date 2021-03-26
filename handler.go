@@ -72,7 +72,7 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		if err != nil {
 			continue
 		}
-		log.Debugf("Found %d records(1) for %s/%d", srv.Target, state.QType(), len(resp.Answer))
+		log.Debugf("Found %d records(1) for %s/%d", len(resp.Answer), srv.Target, state.QType())
 		for _, rr := range resp.Answer {
 			rr1 := dns.Copy(rr)
 			rr1.Header().Name = state.QName()
