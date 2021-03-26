@@ -138,4 +138,5 @@ heading to) is using the xDS protocol from Envoy.
 
 ## Bugs
 
-DNSSEC is not handled at all.
+DNSSEC is not supported, as we rewrite ownernames the signatures won't match. I.e. if you backend
+is signed, it will break validating clients.

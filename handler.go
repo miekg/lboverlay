@@ -14,7 +14,6 @@ import (
 func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	// each HC entity should be updated every 10s, so older entries >1h could be removed. TODO(miek)
 	state := request.Request{W: w, Req: r}
-	server := metrics.WithServer(ctx)
 
 	if o.isHealthCheck(state) {
 		for _, rr := range r.Extra {
@@ -25,7 +24,7 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 			}
 			log.Debugf("Health status for %q set to: %s", joinHostPort(srv.Target, srv.Port), status(srv.Header().Ttl))
 			o.setStatus(srv, status(srv.Header().Ttl))
-			hcCount.WithLabelValues(server).Inc()
+			hcCount.WithLabelValues(metrics.WithServer(ctx)).Inc()
 		}
 		resp := new(dns.Msg)
 		resp.SetReply(r)
@@ -43,15 +42,17 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 	// have to check health anymore, because that is done the responseWriter already.
 	resp, err := o.u.Lookup(ctx, state, state.Name(), dns.TypeSRV)
 	if err != nil {
+		log.Warning(err)
 		return plugin.NextOrFailure(o.Name(), o.Next, ctx, w, r)
 	}
-	if resp.Rcode != dns.RcodeSuccess {
+	if x := resp.Rcode; x != dns.RcodeSuccess {
+		resp.SetReply(r) // overwrites rcode
+		resp.Rcode = x
 		w.WriteMsg(resp)
 		return 0, nil
 	}
 
 	// check the response beforehand to make code below simpler because less corner cases.
-	// TODO: RRSIG, and leaving them in and all that (also NSEC)
 	srvs := 0
 	for _, rr := range resp.Answer {
 		if _, ok := rr.(*dns.SRV); ok {
@@ -81,11 +82,6 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		}
 	}
 	m.Answer = rrs
-	if len(m.Answer) == 0 {
-		// SOA query from backend to at least be able to get that? but we don't know the zone name, so we should chop
-		// off labels.
-	}
-
 	w.WriteMsg(m)
 
 	return dns.RcodeSuccess, nil
