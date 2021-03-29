@@ -89,7 +89,7 @@ func (o *Overlay) isHealthCheck(state request.Request) bool {
 	if state.QName() != o.hcname {
 		return false
 	}
-	if state.Qtype != dns.TypeHINFO {
+	if state.QType() != dns.TypeHINFO {
 		return false
 	}
 	if len(state.Req.Extra) == 0 {
