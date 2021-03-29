@@ -89,7 +89,13 @@ func (o *Overlay) isHealthCheck(state request.Request) bool {
 	if state.QName() != o.hcname {
 		return false
 	}
+	if state.Qtype != dns.TypeHINFO {
+		return false
+	}
 	if len(state.Req.Extra) == 0 {
+		return false
+	}
+	if len(state.Req.Ns) != 0 {
 		return false
 	}
 	// expect SRVs with owner root in the additional

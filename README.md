@@ -104,7 +104,7 @@ The health check service will need a list of hosts, ports and a description of h
 how it gets this or how it's formatted is out of scope here.
 
 Health checks can be send to the *lboverlay* plugin, by abusing a DNS request and encoding the
-health results in the additional section as SRV records. The TTL is then significant to encoding the
+health results in the additional section as SRV records. The TTL is significant to encoding the
 health status:
 
 * TTL=0; UKNOWN
@@ -117,12 +117,12 @@ The name of the SRV record is set to ".", but this is only to
 detect such a request. Potentially this could be signed (TSIG, or RRSIG record) to prevent spoofing
 of these updates.
 
-The question section must adhere to: ". IN SRV" (that's the default, see **NAME**), so the packet
+The question section must adhere to: ". IN HINFO" (that's the default, see **NAME**), so the packet
 that told *lboverlay* that "host1.example.org port 8080" is unhealthy looks like:
 
 ~~~ dns
 ;; QUESTION SECTION:
-;. IN SRV
+;. IN HINFO
 
 ;; ADDITIONAL SECTION:
 .           1    IN      SRV 0 0 8080 host1.example.org.
@@ -133,10 +133,15 @@ the update to all of them.
 
 ## See Also
 
-This plugin uses the DNS to receive health check, another way (and more where the industry is
+This plugin uses the DNS to receive health checks, another way (and more where the industry is
 heading to) is using the xDS protocol from Envoy.
+
+See the *acl* plugin to block health check DNS packets from unwanted sources.
 
 ## Bugs
 
 DNSSEC is not supported, as we rewrite ownernames the signatures won't match. I.e. if you backend
 is signed, it will break validating clients.
+
+The health check DNS packets are not TSIG signed, which could be an easy way of making sure only
+validated health checkers can send updates.

@@ -19,7 +19,6 @@ func (o *Overlay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		for _, rr := range r.Extra {
 			srv, ok := rr.(*dns.SRV)
 			if !ok {
-				log.Debugf("Non SRV record in health check: %s", rr)
 				continue
 			}
 			log.Debugf("Health status for %q set to: %s", joinHostPort(srv.Target, srv.Port), status(srv.Header().Ttl))
